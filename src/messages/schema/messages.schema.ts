@@ -1,17 +1,17 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
-import { Document } from 'mongoose';
+import { Document, Types } from 'mongoose';
 
 export type MessageDocument = Message & Document;
 
 @Schema()
 export class Message {
-  @Prop({ required: true })
-  _id: string = '';
+  @Prop({ type: String, required: true, default: () => new Types.ObjectId() })
+  _id: string = new Types.ObjectId().toHexString();;
 
-  @Prop({ required: true })
+  @Prop({ required: true})
   sender: string = '';
 
-  @Prop({ required: true })
+  @Prop({ required: true})
   receiver: string = '';
 
   @Prop({ required: true })
@@ -22,6 +22,9 @@ export class Message {
 
   @Prop({ default: false })
   isStarred: boolean = false;
+
+  @Prop({ default: () => new Date()})
+  timestamp: Date = new Date();
 }
 
 export const MessageSchema = SchemaFactory.createForClass(Message);

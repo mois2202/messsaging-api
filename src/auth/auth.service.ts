@@ -1,34 +1,54 @@
-// src/auth/auth.service.ts
-import { Injectable } from '@nestjs/common';
-import { UsersService } from '../users/users.service';
+import { HttpException, HttpStatus, Injectable } from '@nestjs/common';
+import { UserDocument, User } from 'src/users/schema/users.schema';
+import { RegisterAuthDto } from './dto/RegisterAuthDto';
+import { hash, compare } from 'bcryptjs';
+import { Model } from 'mongoose';
+import { InjectModel } from '@nestjs/mongoose';
+import { LoginAuthDto } from './dto/LoginAuthDto';
 import { JwtService } from '@nestjs/jwt';
-import * as bcrypt from 'bcryptjs';
 
 @Injectable()
 export class AuthService {
-  constructor(
-    private usersService: UsersService,
-    private jwtService: JwtService,
-  ) {}
+  constructor(@InjectModel(User.name) private readonly userModel : Model<UserDocument>,
+  private JwtService:JwtService ) {}
 
-  async validateUser(username: string, pass: string): Promise<any> {
-    const user = await this.usersService.findOne(username);
-    if (pass && user && (await bcrypt.compare(pass, (user.password ?? '')))) {
-      const { password, ...result } = user;
-      return result;
+  async register(userDTO: RegisterAuthDto) {
+
+    const { password } = userDTO;
+
+    if (password) {
+      const textToHash = await hash(password, 10);
+      userDTO = {...userDTO, password: textToHash};
     }
-    return null;
+    return this.userModel.create(userDTO);
+    
   }
 
-  async login(user: any) {
-    const payload = { username: user.username, sub: user.userId };
-    return {
-      access_token: this.jwtService.sign(payload),
+
+  async login(userDTO: LoginAuthDto) {
+
+    const { email, password} = userDTO;
+
+    const findUser = await this.userModel.findOne({email});
+
+    if (!findUser) {
+      throw new HttpException('User not found', HttpStatus.NOT_FOUND);  
+    }
+
+    const comparePassword = await compare(password, findUser.password);
+  
+    if (!comparePassword) {
+      throw new HttpException('Password is incorrect', HttpStatus.UNAUTHORIZED);
+    }
+
+    const payload = { sub: findUser._id, email: findUser.email, username: findUser.username };
+
+    const token = await this.JwtService.sign(payload);
+
+    const data = {
+      user: findUser,
+      token
     };
-  }
-
-  async register(userDto: any) {
-    const user = await this.usersService.create(userDto.username, userDto.password);
-    return user;
+    return data;
   }
 }

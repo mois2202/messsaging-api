@@ -1,31 +1,45 @@
-import { Controller } from '@nestjs/common';
-import { Post, Body, Get, Param, Patch, Query, UseGuards } from '@nestjs/common';
+import { Controller, Get, Post, Body, Patch, Param, Delete, UseGuards } from '@nestjs/common';
 import { MessagesService } from './messages.service';
-import { JwtAuthGuard } from '../auth/jwt-auth.guard';
+import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
+import { JwtAuthGuard } from 'src/auth/jwt-auth-guard';
+import { SendMessageDto } from './dto/sendMessageDto';
 
-
-@Controller('messages')
+@ApiBearerAuth()
+@ApiTags('messages')
 @UseGuards(JwtAuthGuard)
+@Controller('messages')
 export class MessagesController {
-  constructor(private readonly messagesService: MessagesService) {}
+  constructor(private readonly messagesService: MessagesService) {
 
-  @Post('send')
-  async sendMessage(@Body() sendMessageDto: { sender: string; receiver: string; content: string }) {
-    return this.messagesService.sendMessage(sendMessageDto.sender, sendMessageDto.receiver, sendMessageDto.content);
   }
 
-  @Get(':receiver')
-  async getMessages(@Param('receiver') receiver: string, @Query() query: any) {
-    return this.messagesService.getMessages(receiver, query);
+  @Post()
+  async createMessage(@Body() sendMessageDto: SendMessageDto) {
+    return this.messagesService.saveMessage(sendMessageDto);
   }
 
-  @Patch('read/:id')
-  async markAsRead(@Param('id') messageId: string) {
-    return this.messagesService.markAsRead(messageId);
+  @Get()
+  async findAll() {
+    return await this.messagesService.findAll();
   }
 
-  @Patch('star/:id')
-  async markAsStarred(@Param('id') messageId: string) {
-    return this.messagesService.markAsStarred(messageId);
+  @Get('/starred/')
+  async findOnlyStarred() {
+    return await this.messagesService.findAllStarred();
+  }
+
+  @Get('/read/')
+  async findOnlyRead() {
+    return await this.messagesService.findReadMessages();
+  }
+
+  @Get(':id')
+  async findOne(@Param('id') id: string) {
+    return this.messagesService.findOne(+id);
+  }
+
+  @Delete(':id')
+  async remove(@Param('id') id: string) {
+    return await this.messagesService.remove(+id);
   }
 }
